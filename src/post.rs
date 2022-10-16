@@ -4,6 +4,7 @@ pub struct Post {
     pub title: String,
     pub tags: Vec<String>,
     pub categories: Vec<String>,
+    pub content: String,
 }
 
 impl Post {
