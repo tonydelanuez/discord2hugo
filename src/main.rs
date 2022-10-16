@@ -63,7 +63,17 @@ fn clone_repo() {
     println!("stdout: {}",  String::from_utf8_lossy(&output.stdout));
     println!("stderr: {}",  String::from_utf8_lossy(&output.stderr));
     assert!(output.status.success());
-  };
+  } else {
+    println!("pulling latest refs");
+    let output = std::process::Command::new("git")
+                                                      .current_dir(&repo_dir)
+                                                      .arg("pull")
+                                                      .output()
+                                                      .expect("Failed to clone repo");
+    println!("stdout: {}",  String::from_utf8_lossy(&output.stdout));
+    println!("stderr: {}",  String::from_utf8_lossy(&output.stderr));
+    assert!(output.status.success());
+  }
 }
 
 fn git_commit_and_push(path: &str, post_name: &str) {
@@ -134,7 +144,7 @@ async fn post(ctx: &Context, msg: &Message) -> CommandResult {
     let repo_dir = env::var("REPO_DIR").expect("repo dir");
     let message_id = msg.id.to_string();
     let sanitized_title = post.sanitized_title();
-    let path = format!("{repo_dir}/content/posts/{message_id}-{sanitized_title}.txt");
+    let path = format!("{repo_dir}/content/posts/{message_id}-{sanitized_title}.md");
     // write post to git, push to remote
     if !Path::new(&path).exists() {
       post.write_to_file(&path);
