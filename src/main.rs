@@ -142,9 +142,8 @@ async fn post(ctx: &Context, msg: &Message) -> CommandResult {
     };
 
     let repo_dir = env::var("REPO_DIR").expect("repo dir");
-    let message_id = msg.id.to_string();
     let sanitized_title = post.sanitized_title();
-    let path = format!("{repo_dir}/content/posts/{message_id}-{sanitized_title}.md");
+    let path = format!("{repo_dir}/content/posts/{sanitized_title}.md");
     // write post to git, push to remote
     if !Path::new(&path).exists() {
       post.write_to_file(&path);
