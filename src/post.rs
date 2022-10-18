@@ -1,4 +1,5 @@
 use chrono::{Utc};
+use chrono_tz::US::Central;
 use std::fs;
 use textwrap::dedent;
 
@@ -10,22 +11,27 @@ pub struct Post {
 }
 
 impl Post {
-    pub fn render(&self) -> String {
+    fn header(&self) -> String {
         let title = &self.title;
         let tags = &self.tags;
         let categories = &self.categories;
-        let date = Utc::now().to_string();
-        let body = &self.content;
-        {
-            dedent(&format!("
----
-title: {title}\n
-date: {date}\n
-draft: false\n
+        let date = Utc::now().with_timezone(&Central).to_rfc3339();
+dedent(&format!("---
+title: {title}
+date: {date}
+draft: false
 author: \"Tony\"
 tags: {tags:?}
 categories: {categories:?}
----\n\n
+---\n\n"))
+    }
+
+    pub fn render(&self) -> String {
+        let header = self.header();
+        let body = &self.content;
+        {
+dedent(&format!("
+{header}
 {body}"))
         }
     }
