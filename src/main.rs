@@ -18,11 +18,24 @@ struct Handler;
 #[async_trait]
 impl EventHandler for Handler {}
 
+struct GitConfig {
+  repo_dir: String,
+  git_repo: String,
+}
+
+const ADMIN_ROLE: u64 = 922534457297227826;
+
 #[tokio::main]
 async fn main() {
 
-    println!("Bootstrapping repository");
-    clone_repo();
+    let git_config = GitConfig{
+      repo_dir: env::var("REPO_DIR").expect("repo dir"),
+      git_repo: env::var("GIT_REPO").expect("git repo")
+    };
+    println!("repo dir: {}", git_config.repo_dir);
+    println!("git repo: {}", git_config.git_repo);
+
+    clone_repo(&git_config);
 
     println!("Setting up bot framework");
     let framework = StandardFramework::new()
@@ -46,68 +59,38 @@ async fn main() {
 }
 
 
-fn clone_repo() {
-  let repo_dir = env::var("REPO_DIR").expect("repo dir");
-  let git_repo = env::var("GIT_REPO").expect("git repo");
-  println!("repo dir: {}", repo_dir);
-  println!("git repo: {}", git_repo);
-
-  let git_dir = format!("{}/.git", &repo_dir);
-  if !Path::new(git_dir.as_str()).exists() {
+fn run_git_command(args: Vec<&str>, config: &GitConfig){
     let output = std::process::Command::new("git")
-                                                      .arg("clone")
-                                                      .arg(git_repo)
-                                                      .arg(repo_dir)
+                                                      .current_dir(&config.repo_dir)
+                                                      .args(&args)
                                                       .output()
-                                                      .expect("Failed to clone repo");
+                                                      .expect(&format!("Failed to run git command. Command: {:?}", &args ));
     println!("stdout: {}",  String::from_utf8_lossy(&output.stdout));
     println!("stderr: {}",  String::from_utf8_lossy(&output.stderr));
     assert!(output.status.success());
+}
+
+fn clone_repo(git_config: &GitConfig) {
+  let git_dir = format!("{}/.git", &git_config.repo_dir);
+  if !Path::new(git_dir.as_str()).exists() {
+    println!("Repository not present, cloning");
+    run_git_command(vec!["clone", &*git_config.git_repo, &*git_config.repo_dir], git_config);
   } else {
     println!("pulling latest refs");
-    let output = std::process::Command::new("git")
-                                                      .current_dir(&repo_dir)
-                                                      .arg("pull")
-                                                      .output()
-                                                      .expect("Failed to clone repo");
-    println!("stdout: {}",  String::from_utf8_lossy(&output.stdout));
-    println!("stderr: {}",  String::from_utf8_lossy(&output.stderr));
-    assert!(output.status.success());
+    run_git_command(vec!["pull"], git_config);
   }
 }
 
-fn git_commit_and_push(path: &str, post_name: &str) {
-  let repo_dir = env::var("REPO_DIR").expect("repo dir");
+fn git_commit_and_push(path: &str, post_name: &str, git_config: &GitConfig) {
 
-  let output = std::process::Command::new("git")
-                                                      .current_dir(&repo_dir)
-                                                      .arg("add")
-                                                      .arg(path)
-                                                      .output()
-                                                      .expect("Failed to add file");
-  println!("stdout: {}",  String::from_utf8_lossy(&output.stdout));
-  println!("stderr: {}",  String::from_utf8_lossy(&output.stderr));
-  assert!(output.status.success());
+  println!("Adding file to git index");
+  run_git_command(vec!["add", path], git_config);
 
-  let output = std::process::Command::new("git")
-                                                      .current_dir(&repo_dir)
-                                                      .arg("commit")
-                                                      .arg("-m")
-                                                      .arg(format!("\"add {post_name}\""))
-                                                      .output()
-                                                      .expect("Failed to commit");
-  println!("stdout: {}",  String::from_utf8_lossy(&output.stdout));
-  println!("stderr: {}",  String::from_utf8_lossy(&output.stderr));
-  assert!(output.status.success());
+  println!("Committing file");
+  run_git_command(vec!["commit", "-m", &format!("\"add {post_name}\"")], git_config);
 
-  let output = std::process::Command::new("git")
-                                                      .current_dir(&repo_dir)
-                                                      .arg("push")
-                                                      .output()
-                                                      .expect("Failed to push");
-  println!("stdout: {}",  String::from_utf8_lossy(&output.stdout));
-  println!("stderr: {}",  String::from_utf8_lossy(&output.stderr));
-  assert!(output.status.success());
+  println!("Pushing to remote");
+  run_git_command(vec!["push"], git_config);
 }
 
 
@@ -117,7 +100,7 @@ async fn post(ctx: &Context, msg: &Message) -> CommandResult {
     msg.reply(ctx, "Writing blog post...").await?;
 
     let guild_id = msg.guild_id.unwrap();
-    let admin_role_id = RoleId(922534457297227826);
+    let admin_role_id = RoleId(ADMIN_ROLE);
     let can_post = msg.author.has_role(ctx, guild_id, admin_role_id).await?;
     if !can_post {
       panic!("User is not an admin.");
@@ -140,13 +123,17 @@ async fn post(ctx: &Context, msg: &Message) -> CommandResult {
       tags: vec![],
     };
 
-    let repo_dir = env::var("REPO_DIR").expect("repo dir");
+    let git_config = GitConfig{
+      repo_dir: env::var("REPO_DIR").expect("repo dir"),
+      git_repo: env::var("GIT_REPO").expect("git repo")
+    };
     let sanitized_title = post.sanitized_title();
+    let repo_dir = &git_config.repo_dir;
     let path = format!("{repo_dir}/content/posts/{sanitized_title}.md");
     // write post to git, push to remote
     if !Path::new(&path).exists() {
       post.write_to_file(&path);
-      git_commit_and_push(&path, &sanitized_title);
+      git_commit_and_push(&path, &sanitized_title, &git_config);
     }
     
     msg.reply(ctx, format!("blog post pushed! Go check it out at tdoot.com/{} soon.", sanitized_title)).await?;
