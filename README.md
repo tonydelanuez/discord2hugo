@@ -10,7 +10,12 @@ Add the bot to your guild.
 
 Create a forum post on Discord with a title and some content in the first message.
 
+![Writing a post in Markdown](images/post.png)
+
 Reply to the first (threaded) message with `~post`. The bot will take the content of the first message, the forum channel topic, write the contents to a file, then push them to the desired repository.
+
+![Submitting a post](images/submit.png)
+
 All options are set through environment variables:
 
 - GIT_REPO: url for the git repository. Example: `git@github.com:tonydelanuez/tonydelanuez.github.io.git`
