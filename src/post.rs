@@ -38,7 +38,7 @@ dedent(&format!("
 
     pub fn sanitized_title(&self) -> String {
         let dupe = self.title.clone();
-        dupe.replace(" ", "-")
+        dupe.replace(" ", "-").to_lowercase()
     }
 
     pub fn write_to_file(&self, path: &str) {

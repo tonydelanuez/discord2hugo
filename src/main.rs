@@ -132,7 +132,6 @@ async fn post(ctx: &Context, msg: &Message) -> CommandResult {
 
     
     let post_title = channel.name;
-    let message = format!("Found post title: {post_title}, content: {content}");
     
     let post = post::Post{
       content: String::from(content),
